@@ -1,0 +1,1511 @@
+############################################# IMPORTING ################################################
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox as mess
+from tkinter import LabelFrame, Label, StringVar, Entry, messagebox, PhotoImage, Button
+from random import randint
+import tkinter.simpledialog as tsd
+import cv2, os
+import csv
+import numpy as np
+from PIL import Image
+import pandas as pd
+import datetime
+import time
+import serial
+import playsound
+from PIL import ImageFont
+from PIL import ImageDraw
+import codecs
+import mysql.connector
+from fpdf import FPDF
+
+
+ser = serial.Serial('com4',baudrate = 9600, timeout=1)
+############################################# FUNCTIONS ################################################
+
+def assure_path_exists(path):
+    dir = os.path.dirname(path)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+
+##################################################################################
+
+def tick():
+    time_string = time.strftime('%H:%M:%S')
+    clock.config(text=time_string)
+    clock.after(200, tick)
+    global timees
+    timees = time_string
+
+
+###################################################################################
+
+###################################################################################
+
+def contact():
+    mess._show(title='ผู้พัฒนา', message="")
+
+
+###################################################################################
+def insertsubject():
+    global master
+    master = tk.Tk()
+    master.geometry("400x160")
+    master.resizable(False, False)
+    master.title("เพิ่มรายวิชา")
+    master.configure(background="white")
+    lbl4 = tk.Label(master, text='    รหัสรายวิชา', bg='white', font=('times', 12, ' bold '))
+    lbl4.place(x=10, y=10)
+    global idsubject
+    idsubject = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '))
+    idsubject.place(x=180, y=10)
+    lbl5 = tk.Label(master, text='    ชื่อรายวิชา', bg='white', font=('times', 12, ' bold '))
+    lbl5.place(x=10, y=45)
+    global subjectname
+    subjectname = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '))
+    subjectname.place(x=180, y=45)
+    lbl6 = tk.Label(master, text='    ชื่อผู้สอน', bg='white', font=('times', 12, ' bold '))
+    lbl6.place(x=10, y=80)
+    global teachername
+    teachername = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '))
+    teachername.place(x=180, y=80)
+    cancel = tk.Button(master, text="ยกเลิก", command=master.destroy, fg="black", bg="red", height=1, width=25,
+                       activebackground="white", font=('times', 10, ' bold '))
+    cancel.place(x=200, y=120)
+    save1 = tk.Button(master, text="บันทึก", command=save_subject, fg="black", bg="#3ece48", height=1, width=25,
+                      activebackground="white", font=('times', 10, ' bold '))
+    save1.place(x=10, y=120)
+    master.mainloop()
+    return
+
+
+###################################################################################
+def save_subject():
+    mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="python"
+    )
+    mycursor = mydb.cursor()
+    idsubjectt = (idsubject.get())
+    subjectnamee = (subjectname.get())
+    teachernamee = (teachername.get())
+
+    if idsubjectt != '':
+        if subjectnamee != '':
+            if teachernamee != '':
+                sql = "INSERT INTO subject (id, subjectname, teacher) VALUES (%s, %s, %s)"
+                val = (idsubjectt, subjectnamee, teachernamee)
+                mycursor.execute(sql, val)
+                mydb.commit()
+    print(idsubjectt)
+    print(subjectnamee)
+    print(teachernamee)
+    master.destroy()
+    return
+
+
+###################################################################################
+def showtemperature():
+    global master
+    master = tk.Tk()
+    master.geometry("1480x1080")
+    master.resizable(False, False)
+    master.title("แสดงข้อมูลอุณหภูมินักเรียน")
+    master_Label = Label(master, text="ข้อมูลอุณหภูมินักเรียน", fg="red", font=("Helvetica", 50))
+    master_Label.pack(padx=200, pady=1)
+    master.configure(background="white")
+    mydb = mysql.connector.connect(user="root", password="", database="python", host="localhost",
+                                   auth_plugin="mysql_native_password")
+    cursor = mydb.cursor()
+    cursorr = mydb.cursor()
+
+
+    global rowss
+    sql = "SELECT DISTINCT `IdStudent`, `Studentname`, `Date`, `Time`, `Temperature` FROM `class` ORDER BY `class`.`Temperature`  DESC "  # "SELECT DISTINCT IdClass,IdStudent,Studentname,Subjectname,Date,Time,Status FROM `class` ORDER BY IdClass"
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    total = cursor.rowcount
+    rowss = rows
+    print(rowss)
+
+    tv = ttk.Treeview(master, columns=(1, 2, 3, 4, 5), show="headings", height="30")
+    tv.pack()
+    tv.heading(1, text="StudentID")
+    tv.heading(2, text="StudentName")
+    tv.heading(3, text="Date")
+    tv.heading(4, text="Time")
+    tv.heading(5, text="Temperature")
+
+    for i in rows:
+        tv.insert('', 'end', values=i)
+    quitWindow = tk.Button(master, text="ปริ้นรายงาน", command=ShowReporttemperature, fg="black", bg="red", width=35, height=1,
+                           activebackground="white", font=('times', 15, ' bold '))
+    quitWindow.place(x=500, y=750)
+    master.mainloop()
+###################################################################################
+
+def gotoclass():
+    global master
+    master = tk.Tk()
+    master.geometry("1480x1080")
+    master.resizable(False, False)
+    master.title("รายงานผล")
+    master_Label = Label(master, text="รายงานผลการเข้าเรียน", fg="red", font=("Helvetica", 50))
+    master_Label.pack(padx=200, pady=1)
+    master.configure(background="white")
+    mydb = mysql.connector.connect(user="root", password="", database="python", host="localhost",
+                                   auth_plugin="mysql_native_password")
+    cursor = mydb.cursor()
+    cursorr = mydb.cursor()
+
+
+    global rowss
+    sql = "SELECT DISTINCT `IdClass`, `IdStudent`, `Studentname`, `Subjectname`, `Date`, `Time`,  `Status` FROM `class` ORDER BY `Time` ASC"  # "SELECT DISTINCT IdClass,IdStudent,Studentname,Subjectname,Date,Time,Status FROM `class` ORDER BY IdClass"
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    total = cursor.rowcount
+    rowss = rows
+    print(rowss)
+
+    tv = ttk.Treeview(master, columns=(1, 2, 3, 4, 5, 6, 7), show="headings", height="30")
+    tv.pack()
+    tv.heading(1, text="ClassID")
+    tv.heading(2, text="StudentID")
+    tv.heading(3, text="StudentName")
+    tv.heading(4, text="Subject")
+    tv.heading(5, text="Date")
+    tv.heading(6, text="Time")
+    tv.heading(7, text="Status")
+
+    for i in rows:
+        tv.insert('', 'end', values=i)
+    quitWindow = tk.Button(master, text="ปริ้นรายงาน", command=ShowReport, fg="black", bg="red", width=35, height=1,
+                           activebackground="white", font=('times', 15, ' bold '))
+    quitWindow.place(x=500, y=750)
+    master.mainloop()
+
+
+###################################################################################
+
+
+def check_haarcascadefile():
+    exists = os.path.isfile("haarcascade_frontalface_default.xml")
+    if exists:
+        pass
+    else:
+        mess._show(title='หาไฟล์เปรียบเทียบใบหน้าไม่เจอ', message='กรุณาติดต่อผู้พัฒนา')
+        window.destroy()
+
+
+###################################################################################
+
+def save_pass():
+    assure_path_exists("TrainingImageLabel/")
+    exists1 = os.path.isfile("TrainingImageLabel\psd.txt")
+    if exists1:
+        tf = open("TrainingImageLabel\psd.txt", "r")
+        key = tf.read()
+    else:
+        master.destroy()
+        new_pas = tsd.askstring('ไม่พบรหัสผ่านเก่า', 'โปรดป้อนรหัสผ่านใหม่ด้านล่าง', show='*')
+        if new_pas == None:
+            mess._show(title='ไม่ได้ใส่รหัสผ่าน', message='ยังไม่ได้กำหนดรหัสผ่าน!! กรุณาใส่ใหม่')
+        else:
+            tf = open("TrainingImageLabel\psd.txt", "w")
+            tf.write(new_pas)
+            mess._show(title='รหัสผ่านลงทะเบียน', message='ลงทะเบียนรหัสผ่านใหม่เรียบร้อยแล้ว !!')
+            return
+    op = (old.get())
+    newp = (new.get())
+    nnewp = (nnew.get())
+    if (op == key):
+        if (newp == nnewp):
+            txf = open("TrainingImageLabel\psd.txt", "w")
+            txf.write(newp)
+        else:
+            mess._show(title='ผิดพลาด', message='ยืนยันรหัสผ่านใหม่อีกครั้ง !!!')
+            return
+    else:
+        mess._show(title='รหัสผ่านผิด', message='กรุณากรอกรหัสผ่านเดิมให้ถูกต้อง')
+        return
+    mess._show(title='เปลี่ยนรหัสผ่านแล้ว', message='เปลี่ยนรหัสผ่านเรียบร้อย !!')
+    master.destroy()
+
+
+###################################################################################
+
+def change_pass():
+    global master
+    master = tk.Tk()
+    master.geometry("400x160")
+    master.resizable(False, False)
+    master.title("เปลี่ยนรหัสผ่าน")
+    master.configure(background="white")
+    lbl4 = tk.Label(master, text='    ใส่รหัสเก่า', bg='white', font=('times', 12, ' bold '))
+    lbl4.place(x=10, y=10)
+    global old
+    old = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '), show='*')
+    old.place(x=180, y=10)
+    lbl5 = tk.Label(master, text='   ใส่รหัสผ่านใหม่', bg='white', font=('times', 12, ' bold '))
+    lbl5.place(x=10, y=45)
+    global new
+    new = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '), show='*')
+    new.place(x=180, y=45)
+    lbl6 = tk.Label(master, text='ใส่รหัสผ่านใหม่', bg='white', font=('times', 12, ' bold '))
+    lbl6.place(x=10, y=80)
+    global nnew
+    nnew = tk.Entry(master, width=25, fg="black", relief='solid', font=('times', 12, ' bold '), show='*')
+    nnew.place(x=180, y=80)
+    cancel = tk.Button(master, text="ยกเลิก", command=master.destroy, fg="black", bg="red", height=1, width=25,
+                       activebackground="white", font=('times', 10, ' bold '))
+    cancel.place(x=200, y=120)
+    save1 = tk.Button(master, text="บันทึก", command=save_pass, fg="black", bg="#3ece48", height=1, width=25,
+                      activebackground="white", font=('times', 10, ' bold '))
+    save1.place(x=10, y=120)
+    master.mainloop()
+
+
+#####################################################################################
+
+def psw():
+    assure_path_exists("TrainingImageLabel/")
+    exists1 = os.path.isfile("TrainingImageLabel\psd.txt")
+    if exists1:
+        tf = open("TrainingImageLabel\psd.txt", "r")
+        key = tf.read()
+    else:
+        new_pas = tsd.askstring('ไม่พบรหัสผ่านเก่า', 'โปรดป้อนรหัสผ่านใหม่ด้านล่าง', show='*')
+        if new_pas == None:
+            mess._show(title='ไม่ได้ใส่รหัสผ่าน', message='ไม่ได้ตั้งรหัสผ่าน !! กรุณาลองอีกครั้ง')
+        else:
+            tf = open("TrainingImageLabel\psd.txt", "w")
+            tf.write(new_pas)
+            mess._show(title='ลงทะเบียนรหัสผ่าน', message='ลงทะเบียนรหัสผ่านใหม่เรียบร้อยแล้ว !!')
+            return
+    password = tsd.askstring('รหัสผ่าน', 'ใส่รหัสผ่าน', show='*')
+    if (password == key):
+        TrainImages()
+    elif (password == None):
+        pass
+    else:
+        mess._show(title='รหัสผ่านผิด', message='คุณป้อนรหัสผ่านผิด')
+
+
+######################################################################################
+
+def clear():
+    txt.delete(0, 'end')
+    res = "1)ถ่ายรูป  >>>  2)บันทึกข้อมูล"
+    message1.configure(text=res)
+
+
+def clear2():
+    txt2.delete(0, 'end')
+    res = "1)ถ่ายรูป  >>>  2)บันทึกข้อมูล"
+    message1.configure(text=res)
+
+
+#######################################################################################
+
+def TakeImages():
+    check_haarcascadefile()
+    columns = ['SERIAL NO.', '', 'ID', '', 'NAME']
+    assure_path_exists("StudentDetails/")
+    assure_path_exists("TrainingImage/")
+    serial = 0
+
+    exists = os.path.isfile("StudentDetails\StudentDetails.csv", )
+    if exists:
+        with open("StudentDetails\StudentDetails.csv", 'r', encoding="cp874") as csvFile1:
+            reader1 = csv.reader(csvFile1)
+            for l in reader1:
+                serial = serial + 1
+        serial = (serial // 2)
+        csvFile1.close()
+    else:
+        with open("StudentDetails\StudentDetails.csv", 'a+') as csvFile1:
+            writer = csv.writer(csvFile1)
+            writer.writerow(columns)
+            serial = 1
+        csvFile1.close()
+    Id = (txt.get())
+    name = (txt2.get())
+    if ((Id.isalnum()) or (' ' in Id)):
+        cam = cv2.VideoCapture(0)
+
+        harcascadePath = "haarcascade_frontalface_default.xml"
+        detector = cv2.CascadeClassifier(harcascadePath)
+        sampleNum = 0
+        while (True):
+            ret, img = cam.read()
+            start_time = time.time()
+
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            faces = detector.detectMultiScale(gray, 1.05, 5)
+            for (x, y, w, h) in faces:
+                cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                # incrementing sample number
+                sampleNum = sampleNum + 1
+                # saving the captured face in the dataset folder TrainingImage
+                cv2.imwrite("TrainingImage\ " + name + "." + str(serial) + "." + Id + '.' + str(sampleNum) + ".jpg",
+                            gray[y:y + h, x:x + w])
+                # display the frame
+                fpsInfo = "FPS: " + str(1.0 / (time.time() - start_time))
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(img, fpsInfo, (10, 20), font, 0.4, (255, 255, 255), 1)
+                cv2.imshow('Taking Images', img)
+            # wait for 100 miliseconds
+            if cv2.waitKey(100) & 0xFF == ord('q'):
+                break
+            # break if the sample number is morethan 100
+            elif sampleNum > 100:
+                break
+        cam.release()
+
+        cv2.destroyAllWindows()
+        res = "Images Taken for ID : " + Id
+        row = [serial, '', Id, '', name]
+        global Ids
+        Ids = Id
+        global namee
+        namee = name
+        with open('StudentDetails\StudentDetails.csv', 'a+', encoding="cp874") as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerow(row)
+        csvFile.close()
+        message1.configure(text=res)
+    else:
+        if (name.isalpha() == False):
+            res = "ใส่ชื่อ"
+            print("ใส่ชื่อ")
+            message.configure(text=res)
+
+
+########################################################################################
+
+def TrainImages():
+    check_haarcascadefile()
+    assure_path_exists("TrainingImageLabel/")
+    recognizer = cv2.face_LBPHFaceRecognizer.create()
+    harcascadePath = "haarcascade_frontalface_default.xml"
+    detector = cv2.CascadeClassifier(harcascadePath)
+    faces, ID = getImagesAndLabels("TrainingImage")
+    try:
+        recognizer.train(faces, np.array(ID))
+    except:
+        mess._show(title='ไม่มีการลงทะเบียน', message='กรุณาลงทะเบียนก่อน !!!')
+        return
+    recognizer.save("TrainingImageLabel\Trainner.yml")
+    res = "บันทึกสำเร็จแล้ว"
+    message1.configure(text=res)
+    message.configure(text='การลงทะเบียนทั้งหมดจนถึงขณะนี้  : ' + str(ID[0]))
+
+
+############################################################################################3
+
+def getImagesAndLabels(path):
+    # get the path of all the files in the folder
+    imagePaths = [os.path.join(path, f) for f in os.listdir(path)]
+    # create empth face list
+    faces = []
+    # create empty ID list
+    Ids = []
+    # now looping through all the image paths and loading the Ids and the images
+    for imagePath in imagePaths:
+        # loading the image and converting it to gray scale
+        pilImage = Image.open(imagePath).convert('L')
+        # Now we are converting the PIL image into numpy array
+        imageNp = np.array(pilImage, 'uint8')
+        # getting the Id from the image
+        ID = int(os.path.split(imagePath)[-1].split(".")[1])
+        # extract the face from the training image sample
+        faces.append(imageNp)
+        Ids.append(ID)
+    return faces, Ids
+
+
+###########################################################################################
+def ShowReporttemperature():
+    mydb = mysql.connector.connect(user="root", password="", database="python", host="localhost",
+                                   auth_plugin="mysql_native_password")
+    cursor = mydb.cursor()
+
+    options = []
+    sql = "SELECT DISTINCT`IdClass`, `IdStudent`, `Studentname`, `Subjectname`, `Date`, `Time`, `Temperature` FROM `class` ORDER BY Temperature DESC;"  # "SELECT DISTINCT IdClass,IdStudent,Studentname,Subjectname,Date,Time,Status FROM `class` ORDER BY IdClass"
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    total = cursor.rowcount
+
+    def create_table(table_data, title='', data_size=10, title_size=12, align_data='L', align_header='L',
+                     cell_width='list of ints',
+                     x_start='x_default', emphasize_data=[], emphasize_style=None, emphasize_color=(0, 0, 0)):
+        """
+        table_data:
+                    list of lists with first element being list of headers
+        title:
+                    (Optional) title of table (optional)
+        data_size:
+                    the font size of table data
+        title_size:
+                    the font size fo the title of the table
+        align_data:
+                    align table data
+                    L = left align
+                    C = center align
+                    R = right align
+        align_header:
+                    align table data
+                    L = left align
+                    C = center align
+                    R = right align
+        cell_width:
+                    even: evenly distribute cell/column width
+                    uneven: base cell size on lenght of cell/column items
+                    int: int value for width of each cell/column
+                    list of ints: list equal to number of columns with the widht of each cell / column
+        x_start:
+                    where the left edge of table should start
+        emphasize_data:
+                    which data elements are to be emphasized - pass as list
+                    emphasize_style: the font style you want emphaized data to take
+                    emphasize_color: emphasize color (if other than black)
+
+        """
+        default_style = pdf.font_style
+        if emphasize_style == None:
+            emphasize_style = default_style
+
+        # default_font = pdf.font_family
+        # default_size = pdf.font_size_pt
+        # default_style = pdf.font_style
+        # default_color = pdf.color # This does not work
+
+        # Get Width of Columns
+        def get_col_widths():
+            col_width = cell_width
+            if col_width == 'even':
+                col_width = pdf.epw / len(data[
+                                              0]) - 1  # distribute content evenly   # epw = effective page width (width of page not including margins)
+            elif col_width == 'uneven':
+                col_widths = []
+
+                # searching through columns for largest sized cell (not rows but cols)
+                for col in range(len(table_data[0])):  # for every row
+                    longest = 0
+                    for row in range(len(table_data)):
+                        cell_value = str(table_data[row][col])
+                        value_length = pdf.get_string_width(cell_value)
+                        if value_length > longest:
+                            longest = value_length
+                    col_widths.append(longest + 4)  # add 4 for padding
+                col_width = col_widths
+
+                ### compare columns
+
+            elif isinstance(cell_width, list):
+                col_width = cell_width  # TODO: convert all items in list to int
+            else:
+                # TODO: Add try catch
+                col_width = int(col_width)
+            return col_width
+
+        # Convert dict to lol
+        # Why? because i built it with lol first and added dict func after
+        # Is there performance differences?
+        if isinstance(table_data, dict):
+            header = [key for key in table_data]
+            data = []
+            for key in table_data:
+                value = table_data[key]
+                data.append(value)
+            # need to zip so data is in correct format (first, second, third --> not first, first, first)
+            data = [list(a) for a in zip(*data)]
+
+        else:
+            header = table_data[0]
+            data = table_data[1:]
+
+        line_height = pdf.font_size * 2.5
+
+        col_width = get_col_widths()  # = 25 คือพอดี
+        pdf.set_font(size=title_size)
+
+        # Get starting position of x
+        # Determin width of table to get x starting point for centred table
+        if x_start == 'C':
+            table_width = 0
+            if isinstance(col_width, list):
+                for width in col_width:
+                    table_width += width
+            else:  # need to multiply cell width by number of cells to get table width
+                table_width = col_width * len(table_data[0])
+            # Get x start by subtracting table width from pdf width and divide by 2 (margins)
+            margin_width = pdf.w - table_width
+            # TODO: Check if table_width is larger than pdf width
+
+            center_table = margin_width / 2  # only want width of left margin not both
+            x_start = center_table
+            pdf.set_x(x_start)
+        elif isinstance(x_start, int):
+            pdf.set_x(x_start)
+        elif x_start == 'x_default':
+            x_start = pdf.set_x(pdf.l_margin)
+
+        # TABLE CREATION #
+
+        # add title
+        if title != '':
+            pdf.multi_cell(0, line_height, title, border=0, align='j', ln=3, max_line_height=pdf.font_size)
+            pdf.ln(line_height)  # move cursor back to the left margin
+
+        pdf.set_font(size=data_size)
+        # add header
+        y1 = pdf.get_y()
+        if x_start:
+            x_left = x_start
+        else:
+            x_left = pdf.get_x()
+        x_right = pdf.epw + x_left
+        if not isinstance(col_width, list):
+            if x_start:
+                pdf.set_x(x_start)
+            for datum in header:
+                pdf.multi_cell(col_width, line_height, datum, border=0, align=align_header, ln=3,
+                               max_line_height=pdf.font_size)
+                x_right = pdf.get_x()
+            pdf.ln(line_height)  # move cursor back to the left margin
+            y2 = pdf.get_y()
+            pdf.line(x_left, y1, x_right, y1)
+            pdf.line(x_left, y2, x_right, y2)
+
+            for row in data:
+                if x_start:  # not sure if I need this
+                    pdf.set_x(x_start)
+                for datum in row:
+                    if datum in emphasize_data:
+                        pdf.set_text_color(*emphasize_color)
+                        pdf.set_font(style=emphasize_style)
+                        pdf.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font(style=default_style)
+                    else:
+                        pdf.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named pdf
+                pdf.ln(line_height)  # move cursor back to the left margin
+
+        else:
+            if x_start:
+                pdf.set_x(x_start)
+            for i in range(len(header)):
+                datum = header[i]
+                pdf.multi_cell(col_width[i], line_height, datum, border=0, align=align_header, ln=3,
+                               max_line_height=pdf.font_size)
+                x_right = pdf.get_x()
+            pdf.ln(line_height)  # move cursor back to the left margin
+            y2 = pdf.get_y()
+            pdf.line(x_left, y1, x_right, y1)
+            pdf.line(x_left, y2, x_right, y2)
+
+            for i in range(len(data)):
+                if x_start:
+                    pdf.set_x(x_start)
+                row = data[i]
+                for i in range(len(row)):
+                    datum = row[i]
+                    if not isinstance(datum, str):
+                        datum = str(datum)
+                    adjusted_col_width = col_width[i]
+                    if datum in emphasize_data:
+                        pdf.set_text_color(*emphasize_color)
+                        pdf.set_font(style=emphasize_style)
+                        pdf.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font(style=default_style)
+                    else:
+                        pdf.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named pdf
+                pdf.ln(line_height)  # move cursor back to the left margin
+        y3 = pdf.get_y()
+        pdf.line(x_left, y3, x_right, y3)
+
+    data = [
+        ["ClassID", "StudentID", "Student Name", "Subject Name", "Date", "Time", "Status"],
+        # 'testing','size'],, "Subject Name", "Date", "Time","Status",
+        ["ClassID", "StudentID", "Student Name", "Subject Name", "Date", "Time", "Status"]  # 'testing','size'],
+        # ["1001", "6180144102", "Yanapa Sonprom", "OOP", "11-11-2021", "21:50:00", "CheckIn"],
+    ]
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Times", size=10)
+
+    create_table(table_data=rows,
+                 title='ClassID      StudentID       Student Name     Subject Name     Date          Time      Temperature   ',
+                 cell_width='even', )
+    pdf.ln()
+
+    # create_table(table_data = data_as_dict,align_header='R', align_data='R', cell_width=[15,15,10,45,], x_start='C')
+
+    pdf.output('Report1.pdf')
+
+    # Need to create obejct as pdf
+    return
+######################################## Show Database in gui ############################################
+def ShowReport():
+    mydb = mysql.connector.connect(user="root", password="", database="python", host="localhost",
+                                   auth_plugin="mysql_native_password")
+    cursor = mydb.cursor()
+
+    options = []
+    sql = "SELECT DISTINCT `IdClass`, `IdStudent`, `Studentname`, `Subjectname`, `Date`, `Time`,  `Status` FROM `class` ORDER BY `Time` ASC"  # "SELECT DISTINCT IdClass,IdStudent,Studentname,Subjectname,Date,Time,Status FROM `class` ORDER BY IdClass"
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    total = cursor.rowcount
+
+    def create_table(table_data, title='', data_size=10, title_size=12, align_data='L', align_header='L',
+                     cell_width='list of ints',
+                     x_start='x_default', emphasize_data=[], emphasize_style=None, emphasize_color=(0, 0, 0)):
+        """
+        table_data:
+                    list of lists with first element being list of headers
+        title:
+                    (Optional) title of table (optional)
+        data_size:
+                    the font size of table data
+        title_size:
+                    the font size fo the title of the table
+        align_data:
+                    align table data
+                    L = left align
+                    C = center align
+                    R = right align
+        align_header:
+                    align table data
+                    L = left align
+                    C = center align
+                    R = right align
+        cell_width:
+                    even: evenly distribute cell/column width
+                    uneven: base cell size on lenght of cell/column items
+                    int: int value for width of each cell/column
+                    list of ints: list equal to number of columns with the widht of each cell / column
+        x_start:
+                    where the left edge of table should start
+        emphasize_data:
+                    which data elements are to be emphasized - pass as list
+                    emphasize_style: the font style you want emphaized data to take
+                    emphasize_color: emphasize color (if other than black)
+
+        """
+        default_style = pdf.font_style
+        if emphasize_style == None:
+            emphasize_style = default_style
+
+        # default_font = pdf.font_family
+        # default_size = pdf.font_size_pt
+        # default_style = pdf.font_style
+        # default_color = pdf.color # This does not work
+
+        # Get Width of Columns
+        def get_col_widths():
+            col_width = cell_width
+            if col_width == 'even':
+                col_width = pdf.epw / len(data[
+                                              0]) - 1  # distribute content evenly   # epw = effective page width (width of page not including margins)
+            elif col_width == 'uneven':
+                col_widths = []
+
+                # searching through columns for largest sized cell (not rows but cols)
+                for col in range(len(table_data[0])):  # for every row
+                    longest = 0
+                    for row in range(len(table_data)):
+                        cell_value = str(table_data[row][col])
+                        value_length = pdf.get_string_width(cell_value)
+                        if value_length > longest:
+                            longest = value_length
+                    col_widths.append(longest + 4)  # add 4 for padding
+                col_width = col_widths
+
+                ### compare columns
+
+            elif isinstance(cell_width, list):
+                col_width = cell_width  # TODO: convert all items in list to int
+            else:
+                # TODO: Add try catch
+                col_width = int(col_width)
+            return col_width
+
+        # Convert dict to lol
+        # Why? because i built it with lol first and added dict func after
+        # Is there performance differences?
+        if isinstance(table_data, dict):
+            header = [key for key in table_data]
+            data = []
+            for key in table_data:
+                value = table_data[key]
+                data.append(value)
+            # need to zip so data is in correct format (first, second, third --> not first, first, first)
+            data = [list(a) for a in zip(*data)]
+
+        else:
+            header = table_data[0]
+            data = table_data[1:]
+
+        line_height = pdf.font_size * 2.5
+
+        col_width = get_col_widths()  # = 25 คือพอดี
+        pdf.set_font(size=title_size)
+
+        # Get starting position of x
+        # Determin width of table to get x starting point for centred table
+        if x_start == 'C':
+            table_width = 0
+            if isinstance(col_width, list):
+                for width in col_width:
+                    table_width += width
+            else:  # need to multiply cell width by number of cells to get table width
+                table_width = col_width * len(table_data[0])
+            # Get x start by subtracting table width from pdf width and divide by 2 (margins)
+            margin_width = pdf.w - table_width
+            # TODO: Check if table_width is larger than pdf width
+
+            center_table = margin_width / 2  # only want width of left margin not both
+            x_start = center_table
+            pdf.set_x(x_start)
+        elif isinstance(x_start, int):
+            pdf.set_x(x_start)
+        elif x_start == 'x_default':
+            x_start = pdf.set_x(pdf.l_margin)
+
+        # TABLE CREATION #
+
+        # add title
+        if title != '':
+            pdf.multi_cell(0, line_height, title, border=0, align='j', ln=3, max_line_height=pdf.font_size)
+            pdf.ln(line_height)  # move cursor back to the left margin
+
+        pdf.set_font(size=data_size)
+        # add header
+        y1 = pdf.get_y()
+        if x_start:
+            x_left = x_start
+        else:
+            x_left = pdf.get_x()
+        x_right = pdf.epw + x_left
+        if not isinstance(col_width, list):
+            if x_start:
+                pdf.set_x(x_start)
+            for datum in header:
+                pdf.multi_cell(col_width, line_height, datum, border=0, align=align_header, ln=3,
+                               max_line_height=pdf.font_size)
+                x_right = pdf.get_x()
+            pdf.ln(line_height)  # move cursor back to the left margin
+            y2 = pdf.get_y()
+            pdf.line(x_left, y1, x_right, y1)
+            pdf.line(x_left, y2, x_right, y2)
+
+            for row in data:
+                if x_start:  # not sure if I need this
+                    pdf.set_x(x_start)
+                for datum in row:
+                    if datum in emphasize_data:
+                        pdf.set_text_color(*emphasize_color)
+                        pdf.set_font(style=emphasize_style)
+                        pdf.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font(style=default_style)
+                    else:
+                        pdf.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named pdf
+                pdf.ln(line_height)  # move cursor back to the left margin
+
+        else:
+            if x_start:
+                pdf.set_x(x_start)
+            for i in range(len(header)):
+                datum = header[i]
+                pdf.multi_cell(col_width[i], line_height, datum, border=0, align=align_header, ln=3,
+                               max_line_height=pdf.font_size)
+                x_right = pdf.get_x()
+            pdf.ln(line_height)  # move cursor back to the left margin
+            y2 = pdf.get_y()
+            pdf.line(x_left, y1, x_right, y1)
+            pdf.line(x_left, y2, x_right, y2)
+
+            for i in range(len(data)):
+                if x_start:
+                    pdf.set_x(x_start)
+                row = data[i]
+                for i in range(len(row)):
+                    datum = row[i]
+                    if not isinstance(datum, str):
+                        datum = str(datum)
+                    adjusted_col_width = col_width[i]
+                    if datum in emphasize_data:
+                        pdf.set_text_color(*emphasize_color)
+                        pdf.set_font(style=emphasize_style)
+                        pdf.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font(style=default_style)
+                    else:
+                        pdf.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
+                                       max_line_height=pdf.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named pdf
+                pdf.ln(line_height)  # move cursor back to the left margin
+        y3 = pdf.get_y()
+        pdf.line(x_left, y3, x_right, y3)
+
+    data = [
+        ["ClassID", "StudentID", "Student Name", "Subject Name", "Date", "Time", "Status"],
+        # 'testing','size'],, "Subject Name", "Date", "Time","Status",
+        ["ClassID", "StudentID", "Student Name", "Subject Name", "Date", "Time", "Status"]  # 'testing','size'],
+        # ["1001", "6180144102", "Yanapa Sonprom", "OOP", "11-11-2021", "21:50:00", "CheckIn"],
+    ]
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Times", size=10)
+
+    create_table(table_data=rows,
+                 title='ClassID      StudentID       Student Name     Subject Name     Date          Time           Status',
+                 cell_width='even', )
+    pdf.ln()
+
+    # create_table(table_data = data_as_dict,align_header='R', align_data='R', cell_width=[15,15,10,45,], x_start='C')
+
+    pdf.output('Report.pdf')
+
+    # Need to create obejct as pdf
+    return
+
+
+######################################## Show Database in gui ############################################
+###################################### DATABASE ###########################################
+def Mysql():
+    mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="python"
+    )
+    mycursor = mydb.cursor()
+
+    sql = "INSERT INTO student (id, studentname) VALUES (%s, %s)"
+    val = (Ids, namee)
+    mycursor.execute(sql, val)
+
+    mydb.commit()
+
+
+######################################## DATABASE #########################################
+
+def TrackImages():
+    check_haarcascadefile()
+    assure_path_exists("Attendance/")
+    assure_path_exists("StudentDetails/")
+    for k in tv.get_children():
+        tv.delete(k)
+    msg = ''
+    i = 0
+    j = 0
+    # startTime = 0
+    recognizer = cv2.face.LBPHFaceRecognizer_create()  # cv2.createLBPHFaceRecognizer()
+    exists3 = os.path.isfile("TrainingImageLabel\Trainner.yml")
+    if exists3:
+        recognizer.read("TrainingImageLabel\Trainner.yml")
+    else:
+        mess._show(title='ไม่มีข้อมูล', message='กรุณาคลิกที่บันทึกข้อมูลเพื่อเพิ่มข้อมูล!!')
+        return
+    harcascadePath = "haarcascade_frontalface_default.xml"
+    faceCascade = cv2.CascadeClassifier(harcascadePath);
+
+    cam = cv2.VideoCapture(0)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    col_names = ['Id', '', 'Name', '', 'Date', '', 'Time', '', 'te mp']
+    exists1 = os.path.isfile("StudentDetails\StudentDetails.csv")
+    if exists1:
+        df = pd.read_csv("StudentDetails\StudentDetails.csv")
+    else:
+        mess._show(title='ไม่มีรายละเอียด', message='ไม่มีรายละเอียดข้อมูลโปรดตรวจสอบ!')
+        cam.release()
+        cv2.destroyAllWindows()
+        window.destroy()
+
+    ts = time.time()
+    date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
+    exists = os.path.isfile("Attendance\Attendance_" + date + ".csv")
+    if exists:
+        None
+    else:
+        with open("Attendance\Attendance_" + date + ".csv", 'a+') as csvFile1:
+            writer = csv.writer(csvFile1)
+            writer.writerow(col_names)
+        csvFile1.close()
+
+    while True:
+
+        ret, im = cam.read()
+
+        start_time = time.time()
+        # if (nowTime - startTime) > 0.01:
+
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        faces = faceCascade.detectMultiScale(gray, 1.05, 5, minSize=(20, 20))
+        for (x, y, w, h) in faces:
+            cv2.rectangle(im, (x, y), (x + w, y + h), (225, 0, 0), 2)
+
+            serial, conf = recognizer.predict(gray[y:y + h, x:x + w])
+
+            if (conf < 50):
+                #print(conf)
+                ts = time.time()
+                date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
+                timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+                aa = df.loc[df['SERIAL NO.'] == serial]['NAME'].values
+                ID = df.loc[df['SERIAL NO.'] == serial]['ID'].values
+                ID = str(ID)
+                ID = ID[1:-1]
+                bb = str(aa)
+                bb = bb[2:-2]
+
+                arduinoData = ser.read(ser.in_waiting).decode('ascii')
+                TEMP = getValuestemp()
+                print(TEMP)
+            #                attendance = [str(ID), '', bb, '', str(date), '', str(timeStamp), '', str(TEMP)]
+            #               sendexcal(attendance)
+            #              try:
+            #                 TEMP1 = float(TEMP)
+            #            except:
+            #               playsound.playsound('noscan.mp3', True)
+            #          else:
+            #             sound(TEMP1)
+
+            #         else:
+            #            print(conf)
+            #           ts = time.time()
+            #          date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
+            #         timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+            #        timeStamp1 = datetime.datetime.fromtimestamp(ts).strftime('%H-%M-%S')
+            #       ID = '000000'
+            #      ID = ID[1:-1]
+            #     bb = 'ไม่รู้จัก'
+
+            #                arduinoData = ser.read(ser.in_waiting).decode('ascii')
+            #               if (arduinoData == '5'):
+            #                  TEMP = getValuestemp()
+            #                 #cv2.putText(im, str(date))
+            #                cv2.imwrite("unknown\ " + str(date) + "." + str(timeStamp1) + "." + TEMP + ".jpg", gray[y:y + h, x:x + w])
+            #
+            #              attendance = [str(ID), '', bb, '', str(date), '', str(timeStamp),'', str(TEMP)]
+            #             sendexcal(attendance)
+            #            try:
+            #               TEMP1 = float(TEMP)
+            #          except:
+            #             playsound.playsound('noscan.mp3', True)
+            #        else:
+            #           sound(TEMP1)
+
+            cv2.putText(im, str(bb), (x, y + h), font, 1, (255, 255, 255), 2)
+            global bbb
+            global IDD
+            IDD = ID
+            bbb = bb
+            mydb = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="python"
+            )
+            # print(cutidd)
+            # print(cutsubjectt)
+            # print(cutteachernamee)
+            # print(date)
+            # print(timees)
+            idclass = cutidd
+            namee = bbb
+            subjectt = cutsubjectt
+            datee = date
+            timee = timees
+            test1 = float(conf)
+            test2 = round(test1,2)
+            test3 = str(test2)
+            temperature = test3
+            mycursor = mydb.cursor()
+            sqll = "INSERT INTO class (idclass, idstudent, Studentname, Subjectname, Date, Time, Temperature, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+            vall = (idclass, IDD, namee, subjectt, datee, timee, temperature, checkin)
+            print(vall)
+            mycursor.execute(sqll, vall)
+            mydb.commit()
+        fpsInfo = "FPS: " + str(1.0 / (time.time() - start_time))
+        font = cv2.FONT_HERSHEY_DUPLEX
+
+        cv2.putText(im, fpsInfo, (10, 20), font, 0.4, (255, 255, 255), 1)
+        startTime = time.time()
+
+        cv2.imshow('Taking Attendance', im)
+        if (cv2.waitKey(1) == ord('q')):
+            break
+
+    with open("Attendance\Attendance_" + date + ".csv", 'r') as csvFile1:
+        reader1 = csv.reader(csvFile1)
+        for lines in reader1:
+            i = i + 1
+            if (i > 1):
+                if (i % 2 != 0):
+                    iidd = str(lines[0]) + '   '
+                    tv.insert('', 0, text=iidd, values=(str(lines[2]), str(lines[4]), str(lines[6]), str(lines[8])))
+    csvFile1.close()
+
+    cam.release()
+    cv2.destroyAllWindows()
+
+
+#######################################sound####################################################
+def sound(TEMP1):
+    if (TEMP1 < 37.5):
+        playsound.playsound('yes.mp3', True)
+    else:
+        playsound.playsound('no.mp3', True)
+    return
+
+
+########################################serial.Serial############################################
+def getValuestemp():
+    ser.write(b'g')
+    arduinoDataTemp = ser.readline().decode('ascii')
+    return arduinoDataTemp
+
+
+######################################## SEND EXCAL #############################################
+def sendexcal(attendance):
+    print(attendance)
+    # col_names = ['Id', '', 'Name', '', 'Date', '', 'Time', '', 'temp']
+    # i = 0
+    # j = 0
+    ts = time.time()
+    date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
+    exists = os.path.isfile("Attendance\Attendance_" + date + ".csv")
+    if exists:
+        with open("Attendance\Attendance_" + date + ".csv", 'a+') as csvFile1:
+            writer = csv.writer(csvFile1)
+            writer.writerow(attendance)
+        csvFile1.close()
+    else:
+        with open("Attendance\Attendance_" + date + ".csv", 'a+') as csvFile1:
+            writer = csv.writer(csvFile1)
+            writer.writerow(col_names)
+            writer.writerow(attendance)
+        csvFile1.close()
+    """
+    with open("Attendance\Attendance_" + date + ".csv", 'r') as csvFile1:
+        reader1 = csv.reader(csvFile1)
+        for lines in reader1:
+            i = i + 1
+            if (i > 1):
+                if (i % 2 != 0):
+                    iidd = str(lines[0]) + '   '                                
+                    tv.insert('', 0, text=iidd, values=(str(lines[2]), str(lines[4]), str(lines[6]), str(lines[8])))                         
+    csvFile1.close()
+    """
+    return
+
+
+######################################## USED STUFFS ############################################
+
+global key
+key = ''
+
+ts = time.time()
+date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
+day, month, year = date.split("-")
+global monthh
+mont = {'01': 'มกราคม',
+        '02': 'กุมภาพันธ์',
+        '03': 'มีนาคม',
+        '04': 'เมษายน',
+        '05': 'พฤษภาคม',
+        '06': 'มิถุนายน',
+        '07': 'กรกฎาคม',
+        '08': 'สิงหาคม',
+        '09': 'กันยายน',
+        '10': 'ตุลาคม',
+        '11': 'พฤศจิกายน',
+        '12': 'ธันวาคม'
+        }
+
+##################################################################################################
+"""
+mydb =mysql.connector.connect(user="root", password="", database="python", host="localhost", auth_plugin="mysql_native_password")
+cursor = mydb.cursor()
+
+
+
+options = []
+sql = "SELECT * FROM subject"
+cursor.execute(sql)
+ids = cursor.fetchall()
+for i in ids:
+    options.append(str(i[0])+" - "+i[1]+" - "+i[2])
+
+def lookupsubject(event):
+    options = mycombo.get()
+    cid = options.split("-")[0]
+    query = "SELECT * FROM subject WHERE id = %s"
+    cursor.execute(query, (cid,))
+    rows = cursor.fetchall()
+    for i in rows :
+     fid.set(i[0])
+     fsubject.set(i[1])
+     fteacher.set(i[2])
+
+
+from tkinter import *
+from tkinter import ttk
+frame44 = Tk()
+
+wrapper = LabelFrame(frame44, text="Subject")
+wrapper2 = LabelFrame(frame44, text="SubjectDetail")
+wrapper.pack(padx=1, pady=1)
+wrapper2.pack(padx=1, pady=1)
+
+Label(wrapper, text="Select Subject").grid(row=0, column=0, padx=10, pady=10)
+
+
+opts = StringVar()
+fid = StringVar()
+fsubject = StringVar()
+fteacher = StringVar()
+
+mycombo = ttk.Combobox(wrapper, textvariable=opts)
+mycombo['values'] = options
+mycombo.grid(row=0, column=1, padx=10, pady=10)
+mycombo.bind("<<ComboboxSelected>>", lookupsubject)
+
+lbl1 = Label(wrapper2, text="Subject ID")
+lbl1.grid(row=0, column=0, padx=10, pady=10)
+ent1 = Entry(wrapper2, textvariable=fid)
+ent1.grid(row=0, column=1, padx=10, pady=10)
+
+lbl2 = Label(wrapper2, text="Subject Name")
+lbl2.grid(row=1, column=0, padx=10, pady=10)
+ent2 = Entry(wrapper2, textvariable=fsubject)
+ent2.grid(row=1, column=1, padx=10, pady=10)
+
+lbl3 = Label(wrapper2, text="Teacher Name")
+lbl3.grid(row=2, column=0, padx=10, pady=5)
+ent3 = Entry(wrapper2, textvariable=fteacher)
+ent3.grid(row=2, column=1, padx=10, pady=5)
+
+"""
+##################################################################################################
+######################################## GUI FRONT-END ###########################################
+
+window = tk.Tk()
+window.geometry("1980x1280")  # 1280x720
+window.resizable(True, False)
+window.title("โปรแกรมเช็คชื่อ ด้วยใบหน้า")
+window.configure(background='#262523')
+
+frame1 = tk.Frame(window, bg="#00aeff")
+frame1.place(relx=0.11, rely=0.17, relwidth=0.39, relheight=0.85)
+
+frame2 = tk.Frame(window, bg="#00aeff")
+frame2.place(relx=0.51, rely=0.17, relwidth=0.38, relheight=0.85)
+
+frame33 = tk.Frame(window, bg="pink")
+frame33.place(relx=0.11, rely=0.290, relwidth=0.39, relheight=0.58)  # กรอบสีชมพู
+
+message3 = tk.Label(window, text="โปรแกรมเช็คชื่อ ด้วยใบหน้า", fg="white", bg="#262523", width=55, height=1,
+                    font=('times', 29, ' bold '))
+message3.place(x=140, y=10)
+
+frame3 = tk.Frame(window, bg="#c4c6ce")
+frame3.place(relx=0.52, rely=0.09, relwidth=0.09, relheight=0.07)
+
+frame4 = tk.Frame(window, bg="#c4c6ce")
+frame4.place(relx=0.36, rely=0.09, relwidth=0.16, relheight=0.07)
+
+datef = tk.Label(frame4,
+                 text="                       " + day + "       " + mont[month] + "       " + year + "     |   ",
+                 fg="orange", bg="#262523", width=55, height=1, font=('times', 20, ' bold '))
+datef.pack(fill='both', expand=1)
+
+global dayy
+global montt
+global yearr
+
+dayy = day
+montt = mont[month]
+yearr = year
+
+clock = tk.Label(frame3, fg="orange", bg="#262523", width=55, height=1, font=('times', 22, ' bold '))
+clock.pack(fill='both', expand=1)
+tick()
+
+head2 = tk.Label(frame2,
+                 text="                                    ลงทะเบียนใบหน้า                                                     ",
+                 fg="black", bg="#3ece48", font=('times', 17, ' bold '))
+head2.grid(row=0, column=0)
+
+head1 = tk.Label(frame1,
+                 text="                                           แสดงรายการ                                                       ",
+                 fg="black", bg="#3ece48", font=('times', 17, ' bold '))
+head1.place(x=0, y=0)
+
+lbl = tk.Label(frame2, text="รหัส", width=20, height=1, fg="black", bg="#00aeff", font=('times', 17, ' bold '))
+lbl.place(x=130, y=55)
+
+txt = tk.Entry(frame2, width=32, fg="black", font=('./angsau_0', 15, ' bold '))
+txt.place(x=80, y=88)
+
+lbl2 = tk.Label(frame2, text="ชื่อ นามสกุล", width=20, fg="black", bg="#00aeff", font=('times', 17, ' bold '))
+lbl2.place(x=130, y=140)
+
+txt2 = tk.Entry(frame2, width=32, fg="black", font=('Courier', 15, ' bold '))
+txt2.place(x=80, y=173)
+
+message1 = tk.Label(frame2, text="1)ถ่ายรูป  >>>  2)บันทึกข้อมูล", bg="#00aeff", fg="black", width=39, height=1,
+                    activebackground="yellow", font=('times', 15, ' bold '))
+message1.place(x=70, y=230)
+
+message = tk.Label(frame2, text="", bg="#00aeff", fg="black", width=39, height=1, activebackground="yellow",
+                   font=('times', 16, ' bold '))
+message.place(x=70, y=450)
+
+########################################################################
+
+########################################################################
+res = 0
+exists = os.path.isfile("StudentDetails\StudentDetails.csv")
+if exists:
+    with open("StudentDetails\StudentDetails.csv", 'r') as csvFile1:
+        reader1 = csv.reader(csvFile1)
+        for l in reader1:
+            res = res + 1
+    res = (res // 2)
+    csvFile1.close()
+else:
+    res = 0
+message.configure(text='จำนวนข้อมูลที่บันทึก  : ' + str(res))
+
+##################### MENUBAR #################################
+
+menubar = tk.Menu(window, relief='ridge')
+filemenu = tk.Menu(menubar, tearoff=0)
+filemenu.add_command(label='เปลี่ยนรหัส', command=change_pass)
+# filemenu.add_command(label='ติดต่อ', command = contact)
+filemenu.add_command(label='รายงานผลการเข้าเรียน', command=gotoclass)
+filemenu.add_command(label='รายงานผลอุณหภูมินักเรียน', command=showtemperature)
+filemenu.add_command(label='เพิ่มรายวิชา', command=insertsubject)
+filemenu.add_command(label='ออก', command=window.destroy)
+menubar.add_cascade(label='ตั้งค่า', font=('times', 29, ' bold '), menu=filemenu)
+
+
+#################################################################
+def insertclass():
+    print("ยังไม่เสร็จ")
+    return
+
+
+###############################ล่าสุดถึงตรงนี้############################
+
+mydb = mysql.connector.connect(user="root", password="", database="python", host="localhost",
+                               auth_plugin="mysql_native_password")
+cursor = mydb.cursor()
+
+options = []
+sql = "SELECT DISTINCT `IdClass`, `IdStudent`, `Studentname`, `Subjectname`, `Date`, `Time`,  `Status` FROM `class` ORDER BY `Time` ASC"  # "SELECT DISTINCT Id,Studentname,Subjectname,Date FROM `class` ORDER BY id"
+cursor.execute(sql)
+rows = cursor.fetchall()
+total = cursor.rowcount
+
+wrapper = LabelFrame(frame33, text="Class")
+wrapper2 = LabelFrame(frame33, text="SubjectDetail")
+wrapper3 = LabelFrame(frame33)
+wrapper.pack(padx=1, pady=1)
+wrapper3.pack(padx=1, pady=1)
+wrapper2.pack(padx=1, pady=1)
+
+# Keep track of the button state on/off
+# global is_on
+is_on = True
+
+# Create Label
+my_label = Label(wrapper3, text="เข้าเรียน", fg="green", font=("Helvetica", 10))
+my_label.pack(padx=100, pady=10)
+
+
+# Define our switch function
+def switch():
+    global is_on
+    global checkin
+    # Determin is on or off
+    if is_on:
+        on_button.config(image=off)
+        my_label.config(text="เลิกเรียน", fg="grey")
+        is_on = False
+        checkin = "CheckOut"
+        print(checkin)
+    else:
+
+        on_button.config(image=on)
+        my_label.config(text="เข้าเรียน", fg="green")
+        is_on = True
+        checkin = "CheckIn"
+        print(checkin)
+
+    # Define Our Images
+
+
+on = PhotoImage(file="on.png")
+off = PhotoImage(file="off.png")
+
+# Create A Button
+on_button = Button(wrapper3, image=on, bd=0, command=switch)
+on_button.pack(padx=250, pady=0)
+
+# Execute Tkinter
+
+tv = ttk.Treeview(frame33, columns=(1, 2, 3, 4, 5, 6, 7), show="headings", height="20")
+tv.pack()
+tv.heading(1, text="ClassID")
+tv.heading(2, text="StudentID")
+tv.heading(3, text="StudentName")
+tv.heading(4, text="Subject")
+tv.heading(5, text="Date")
+tv.heading(6, text="Time")
+tv.heading(7, text="Status")
+
+for i in rows:
+    tv.insert('', 'end', values=i)
+
+options = []
+sql = "SELECT * FROM subject"
+cursor.execute(sql)
+ids = cursor.fetchall()
+for i in ids:
+    options.append(str(i[0]) + " - " + i[1] + " - " + i[2])
+
+global cutid
+global cutsubject
+global cutteachername
+
+
+def lookupsubject(event):
+    options = mycombo.get()
+    print(options)
+    cid = options.split("-")[0]
+    csubject = options.split("-")[1]
+    cteachername = options.split("-")[2]
+    cutid = cid
+    cutsubject = csubject
+    cutteachername = cteachername
+    print(cutid)
+    print(cutsubject)
+    print(cutteachername)
+    global cutidd
+    cutidd = cutid
+    global cutsubjectt
+    cutsubjectt = cutsubject
+    global cutteachernamee
+    cutteachernamee = cutteachername
+
+    query = "SELECT * FROM subject WHERE id = %s"
+    cursor.execute(query, (cid,))
+    rows = cursor.fetchall()
+    for i in rows:
+        fid.set(i[0])
+        fsubject.set(i[1])
+        fteacher.set(i[2])
+
+
+Label(wrapper, text="Select Class").grid(row=0, column=0, padx=1, pady=10)
+
+opts = StringVar()
+fid = StringVar()
+fsubject = StringVar()
+fteacher = StringVar()
+
+mycombo = ttk.Combobox(wrapper, textvariable=opts)
+mycombo['values'] = options
+mycombo.grid(row=0, column=1, padx=200, pady=10)
+mycombo.bind("<<ComboboxSelected>>", lookupsubject)
+
+lbl1 = Label(wrapper2, text="Subject ID")
+lbl1.grid(row=0, column=0, padx=100, pady=10)
+ent1 = Entry(wrapper2, textvariable=fid, state="readonly")
+ent1.grid(row=0, column=1, padx=100, pady=10)
+
+lbl2 = Label(wrapper2, text="Subject Name")
+lbl2.grid(row=1, column=0, padx=100, pady=10)
+ent2 = Entry(wrapper2, textvariable=fsubject, state="readonly")
+ent2.grid(row=1, column=1, padx=100, pady=10)
+
+lbl3 = Label(wrapper2, text="Teacher Name")
+lbl3.grid(row=2, column=0, padx=100, pady=5)
+ent3 = Entry(wrapper2, textvariable=fteacher, state="readonly")
+ent3.grid(row=2, column=1, padx=100, pady=10)
+
+#################################################################
+
+################## TREEVIEW ATTENDANCE TABLE ####################
+tv = ttk.Treeview(frame1, height=13, columns=('name', 'date', 'time', 'temp'))
+tv.column('#0', width=75)
+tv.column('name', width=110)
+tv.column('date', width=110)
+tv.column('time', width=110)
+tv.column('temp', width=71)
+tv.grid(row=2, column=0, padx=(0, 0), pady=(1000, 0), columnspan=4)
+tv.heading('#0', text='รหัส')
+tv.heading('name', text='ชื่อ')
+tv.heading('date', text='วันที่')
+tv.heading('time', text='เวลา')
+tv.heading('temp', text='อุณหภูมิ')
+###################### SCROLLBAR ################################
+"""
+scroll=ttk.Scrollbar(wrapper,orient='vertical',command=tv.yview)
+scroll.grid(row=0,column=0,padx=(1,1),pady=(1,1),sticky='ns')
+tv.configure(yscrollcommand=scroll.set)
+"""
+###################### SCROLLBAR ################################
+
+###################### BUTTONS ##################################
+
+clearButton = tk.Button(frame2, text="ลบ", command=clear, fg="black", bg="#ea2a2a", width=11, activebackground="white",
+                        font=('times', 11, ' bold '))
+clearButton.place(x=385, y=86)
+clearButton2 = tk.Button(frame2, text="ลบ", command=clear2, fg="black", bg="#ea2a2a", width=11,
+                         activebackground="white", font=('times', 11, ' bold '))
+clearButton2.place(x=385, y=172)
+takeImg = tk.Button(frame2, text="ถ่ายรูป", command=TakeImages, fg="white", bg="blue", width=34, height=1,
+                    activebackground="white", font=('times', 15, ' bold '))
+takeImg.place(x=80, y=300)
+trainImg = tk.Button(frame2, text="บันทึกข้อมูล", command=psw, fg="white", bg="blue", width=34, height=1,
+                     activebackground="white", font=('times', 15, ' bold '))
+trainImg.place(x=80, y=380)
+trainImg = tk.Button(frame2, text="บันทึกฐานข้อมูล", command=Mysql, fg="white", bg="blue", width=34, height=1,
+                     activebackground="white", font=('times', 15, ' bold '))
+trainImg.place(x=80, y=480)
+trackImg = tk.Button(frame1, text="เปิดกล้อง", command=TrackImages, fg="black", bg="yellow", width=35, height=1,
+                     activebackground="white", font=('times', 15, ' bold '), )
+trackImg.place(x=80, y=50)
+quitWindow = tk.Button(frame1, text="ออกจากโปรแกรม", command=window.destroy, fg="black", bg="red", width=35, height=1,
+                       activebackground="white", font=('times', 15, ' bold '))
+quitWindow.place(x=80, y=570)
+# quitWindow = tk.Button(frame1, text="", command=insertclass  ,fg="black"  ,bg="red"  ,width=35 ,height=1, activebackground = "white" ,font=('times', 15, ' bold '))
+# quitWindow.place(x=80, y=550)
+
+
+##################### END ######################################
+
+window.configure(menu=menubar)
+window.mainloop()
+
+####################################################################################################
